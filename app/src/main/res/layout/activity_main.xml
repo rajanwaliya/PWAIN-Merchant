@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+<RelativeLayout
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:orientation="vertical"
+              tools:context="merchant.example.vardaan.pwa_merchant.MainActivity">
+
+    <TextView
+        android:id="@+id/phoneTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="50px"
+        android:text="Enter the customer's number"
+        android:textAppearance="@android:style/TextAppearance.Material.Large"/>
+
+    <EditText
+        android:id="@+id/editPhone"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="5px"
+        android:ems="10"
+        android:layout_centerHorizontal="true"
+        android:inputType="phone"
+        android:gravity="center"
+        android:layout_below="@+id/phoneTitle"
+        android:text="123"/>
+
+    <TextView
+        android:id="@+id/itemTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="50px"
+        android:text="Enter the Item's descrption"
+        android:layout_below="@+id/editPhone"
+        android:textAppearance="@android:style/TextAppearance.Material.Large"/>
+
+    <EditText
+        android:id="@+id/editItem"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10px"
+        android:ems="10"
+        android:layout_centerHorizontal="true"
+        android:inputType="text"
+        android:layout_below="@+id/itemTitle"
+        android:gravity="center"
+        android:text="Cake"/>
+
+    <TextView
+        android:id="@+id/amountTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="50px"
+        android:text="Enter the Item's amount"
+        android:layout_below="@+id/editItem"
+        android:textAppearance="@android:style/TextAppearance.Material.Large"/>
+
+    <EditText
+        android:id="@+id/editAmount"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10px"
+        android:ems="10"
+        android:layout_centerHorizontal="true"
+        android:inputType="numberDecimal"
+        android:gravity="center"
+        android:layout_below="@+id/amountTitle"
+        android:text="12"/>
+
+    <TextView
+        android:id="@+id/sellerNoteTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="50px"
+        android:text="Seller note (optional)"
+        android:layout_below="@+id/editAmount"
+        android:textAppearance="@android:style/TextAppearance.Material.Large"/>
+
+    <EditText
+        android:id="@+id/editSellerNote"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10px"
+        android:ems="10"
+        android:layout_centerHorizontal="true"
+        android:gravity="center"
+        android:inputType="text"
+        android:layout_below="@+id/sellerNoteTitle"
+        android:text="The cake is a LIE!"/>
+
+
+
+
+
+        <Button
+            android:id="@+id/static_qr_button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/Amazon_Orange"
+            android:text="Get Static QR"
+            android:layout_below="@+id/editSellerNote"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentStart="true"
+            android:layout_marginTop="11dp"/>
+
+        <Button
+            android:id="@+id/paymentRequestButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/Amazon_Orange"
+            android:layout_below="@id/static_qr_button"
+            android:text="Send Payment Request"
+            android:layout_marginTop="11dp"/>
+
+
+
+</RelativeLayout>
+
+</ScrollView>

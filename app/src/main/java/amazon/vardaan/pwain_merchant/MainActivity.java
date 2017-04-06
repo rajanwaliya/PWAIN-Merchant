@@ -29,6 +29,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Collects required info from merchant and enables him to either send a payment request to his customer via SMS/QR
+ * code or generate a static QR that the customer can scan to pay whenever
+ */
 public class MainActivity extends AppCompatActivity {
 
     EditText customerPhone;
@@ -42,6 +46,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        //1. Check if user has SEND_SMS Permission. If not request user if he wants to grant permission
+        // P.S Permissions need to be declared in manifest.xml as well
         if (ContextCompat.checkSelfPermission(this,
                 Manifest.permission.SEND_SMS)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -54,51 +60,94 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
+        //2. gets a handle on the text fields we have declared in res/layout/activity_main.xml
         customerPhone = (EditText) findViewById(R.id.editPhone);
         amount = (EditText) findViewById(R.id.editAmount);
         item = (EditText) findViewById(R.id.editItem);
         sellerNote = (EditText) findViewById(R.id.editSellerNote);
         sendPaymentRequest = (Button) findViewById(R.id.paymentRequestButton);
         generateStaticQR = (Button) findViewById(R.id.static_qr_button);
+        // Creating a listener for "send payment request" button click. This will be called every time the button is
+        // clicked
         sendPaymentRequest.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                try {
-
-                    String url = new ShortenUrl().execute(new MerchantBackendTask().execute().get()).get();
-                    Log.wtf("test app", "obtained url=" + url);
-                    Intent i = new Intent(getApplicationContext(), QrActivity.class);
-                    i.putExtra("url", url);
-                    sendSMS(customerPhone.getText().toString(), url);
-                    startActivity(i);
-                } catch (Exception e) {
-                    Log.e("error", "error", e);
-                }
+                sendPaymentRequest();
             }
         });
+        // Creating a listener for "send payment request" button click. This will be called every time the button is
+        // clicked
         generateStaticQR.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Map<String, String> staticParams = getParams();
-                staticParams.remove("orderTotalAmount");
-                Intent i = new Intent(getApplicationContext(), QrActivity.class);
-                i.putExtra("url", staticParams.toString());
-                Log.wtf("static", staticParams.toString());
-                startActivity(i);
+                getStaticQR();
             }
         });
 
     }
 
+    /**
+     * Sends an SMS to the user with the tiny URL and passes the URL to QRActivity so that it can be encoded into a
+     * QR code
+     */
+    private void sendPaymentRequest() {
+        try {
+            // 3. Make a call to tinyUrl API to get a shortened URL.
+            // ShortenUrl() is an ASYNC task. This is because all network calls have to be made asynchronously.
+            // MerchantBackendTask() Makes a call to our Sign And Encrypt backend and returns the initiate payment url
+            // .execute() starts the async task.
+            // since we cant proceed till async task is finished we added the .get() at the end
+            // .get() ensures that the code doesn't proceed further untill the async task is finished
+            String url = new ShortenUrl().execute(new MerchantBackendTask().execute().get()).get();
+            Log.wtf("test app", "obtained url=" + url);
+            // 4. We are now going to take the initiate payment url and convert it to a QR code.
+            // To do that we have to pass the url to QRActivity
+            // only way to pass control to another activity is via an intent
+            Intent i = new Intent(getApplicationContext(), QrActivity.class);
+            i.putExtra("url", url);
+            // 5. Sending an SMS to the customer with the tiny url
+            sendSMS(customerPhone.getText().toString(), url);
+            //6. Sending the initiate payment URL to QR Activity so that it can be encoded into a QR
+            startActivity(i);
+        } catch (Exception e) {
+            Log.e("error", "error", e);
+        }
+    }
 
+    /**
+     * Sends url needed for static payments to QR Activity so as to generate a resuable static QR
+     */
+    private void getStaticQR() {
+        // 7. Gets the params needed to make a SIGN and ENCRYPT call
+        Map<String, String> staticParams = getParams();
+        // we remove total amount as that will be entered later by the customer in his app
+        staticParams.remove("orderTotalAmount");
+        Intent i = new Intent(getApplicationContext(), QrActivity.class);
+        //8. here we give the SIGN and ENCRYPT url in the QR code. The customer app will add the amount and make a call
+        // to merchant back to get a signed payload. We cant do that here as we cant determine the order amount
+        i.putExtra("url", staticParams.toString());
+        Log.wtf("static", staticParams.toString());
+        startActivity(i);
+    }
+
+    /**
+     * Sends an SMS to the customer with the tiny URL
+     *
+     * @param phoneNumber
+     * @param url
+     */
     public void sendSMS(String phoneNumber, String url) {
-
         Log.e("sms", "sending sms");
         String message = String.format("Here is your payment url: %s", url);
         SmsManager smsManager = SmsManager.getDefault();
         smsManager.sendTextMessage(phoneNumber, "PWAIN", message, null, null);
     }
 
+    /**
+     * Returns the params needed for an Amazon Pay URL
+     *
+     * @return
+     */
     Map<String, String> getParams() {
         return new HashMap<String, String>() {{
             put("orderTotalAmount", amount.getText().toString());
@@ -110,11 +159,15 @@ public class MainActivity extends AppCompatActivity {
                 Log.d("SellerNote", sellerNoteString);
                 put("sellerNote", sellerNoteString);
             }
+            // for now using some random UUID as seller order id
             put("sellerOrderId", item.getText().toString() + "_" + UUID.randomUUID().toString());
             put("transactionTimeout", "1000");
         }};
     }
 
+    /**
+     * Makes a call to tiny URL API to get a shortened url
+     */
     private class ShortenUrl extends AsyncTask<String, Void, String> {
         @Override
         protected String doInBackground(String... strings) {
@@ -132,12 +185,15 @@ public class MainActivity extends AppCompatActivity {
                     return data;
                 }
             } catch (Exception e) {
-                Log.wtf("Exception","Exception here",e);
+                Log.wtf("Exception", "Exception here", e);
             }
             return null;
         }
     }
 
+    /**
+     * Makes a call to Amazon Pay backend to sign the payload, then returns the final initiate payment url
+     */
     private class MerchantBackendTask extends AsyncTask<Void, Void, String> {
 
         private static final String LOG_TAG = "merchant server";
@@ -188,7 +244,6 @@ public class MainActivity extends AppCompatActivity {
             }
             return null;
         }
-
 
         String createURLString(URL endpoint, Map<String, String> parameters, String path) {
             return createUri(endpoint, parameters, path).toString();

@@ -27,6 +27,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.FormBody;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+
 /**
  * Collects required info from merchant and enables him to either send a payment request to his customer via SMS/QR
  * code or generate a static QR that the customer can scan to pay whenever
@@ -39,6 +47,8 @@ public class MainActivity extends AppCompatActivity {
     EditText sellerNote;
     Button sendPaymentRequest;
     Button generateStaticQR;
+
+    private OkHttpClient mClient = new OkHttpClient();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -104,8 +114,14 @@ public class MainActivity extends AppCompatActivity {
             Intent i = new Intent(getApplicationContext(), QrActivity.class);
             i.putExtra("url", url);
             // 5. Sending an SMS to the customer with the tiny url and the targeted ad mail
+            /**
             sendSMS(customerPhone.getText().toString(), String.format("Here is your payment url: %s", url));
             sendSMS(customerPhone.getText().toString(), "It looks like you recently purchased " + item.getText()
+                    .toString() + ". You can get upto 20% off on " + item.getText()
+                    .toString() + " using Jhinga Lala app and paying with Amazon Pay");
+             **/
+            sendSMSusingTwilio(customerPhone.getText().toString(), String.format("Here is your payment url: %s", url));
+            sendSMSusingTwilio(customerPhone.getText().toString(), "It looks like you recently purchased " + item.getText()
                     .toString() + ". You can get upto 20% off on " + item.getText()
                     .toString() + " using Jhinga Lala app and paying with Amazon Pay");
             //6. Sending the initiate payment URL to QR Activity so that it can be encoded into a QR
@@ -328,5 +344,44 @@ public class MainActivity extends AppCompatActivity {
 
         }
 
+    }
+
+    public void sendSMSusingTwilio(String to, String body){
+        try {
+            //get ngrok url after SMS backend is up
+            post("YOUR_NGROK_URL/sms", new  Callback(){
+
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    e.printStackTrace();
+                }
+
+                @Override
+                public void onResponse(Call call, Response response) throws IOException {
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            Log.e("Twilio","Successfully sent the message.");
+                        }
+                    });
+                }
+            }, to, body);
+        } catch (IOException e) {
+            Log.e("error", "error", e);
+        }
+    }
+
+    Call post(String url, Callback callback, String to, String body) throws IOException{
+        RequestBody formBody = new FormBody.Builder()
+                .add("To", to)
+                .add("Body", body)
+                .build();
+        Request request = new Request.Builder()
+                .url(url)
+                .post(formBody)
+                .build();
+        Call response = mClient.newCall(request);
+        response.enqueue(callback);
+        return response;
     }
 }

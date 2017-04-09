@@ -15,14 +15,12 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.util.EntityUtils;
-
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
+import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.util.HashMap;
@@ -105,14 +103,18 @@ public class MainActivity extends AppCompatActivity {
             // only way to pass control to another activity is via an intent
             Intent i = new Intent(getApplicationContext(), QrActivity.class);
             i.putExtra("url", url);
-            // 5. Sending an SMS to the customer with the tiny url
-            sendSMS(customerPhone.getText().toString(), url);
+            // 5. Sending an SMS to the customer with the tiny url and the targeted ad mail
+            sendSMS(customerPhone.getText().toString(), String.format("Here is your payment url: %s", url));
+            sendSMS(customerPhone.getText().toString(), "It looks like you recently purchased " + item.getText()
+                    .toString() + ". You can get upto 20% off on " + item.getText()
+                    .toString() + " using Jhinga Lala app and paying with Amazon Pay");
             //6. Sending the initiate payment URL to QR Activity so that it can be encoded into a QR
             startActivity(i);
         } catch (Exception e) {
             Log.e("error", "error", e);
         }
     }
+
 
     /**
      * Sends url needed for static payments to QR Activity so as to generate a resuable static QR
@@ -130,17 +132,21 @@ public class MainActivity extends AppCompatActivity {
         startActivity(i);
     }
 
+
     /**
-     * Sends an SMS to the customer with the tiny URL
+     * Sends an SMS to the customer with the supplied message
      *
      * @param phoneNumber
-     * @param url
+     * @param message
      */
-    public void sendSMS(String phoneNumber, String url) {
+    public void sendSMS(String phoneNumber, String message) {
         Log.e("sms", "sending sms");
-        String message = String.format("Here is your payment url: %s", url);
-        SmsManager smsManager = SmsManager.getDefault();
-        smsManager.sendTextMessage(phoneNumber, "PWAIN", message, null, null);
+       try {
+           SmsManager smsManager = SmsManager.getDefault();
+           smsManager.sendTextMessage(phoneNumber, "PWAIN", message, null, null);
+       }catch (Exception e){
+           Log.wtf("sms","",e);
+       }
     }
 
     /**
@@ -165,6 +171,30 @@ public class MainActivity extends AppCompatActivity {
         }};
     }
 
+
+    String readStream(InputStream in) {
+        BufferedReader reader = null;
+        StringBuilder response = new StringBuilder();
+        try {
+            reader = new BufferedReader(new InputStreamReader(in));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                response.append(line);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            if (reader != null) {
+                try {
+                    reader.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return response.toString();
+    }
+
     /**
      * Makes a call to tiny URL API to get a shortened url
      */
@@ -174,13 +204,10 @@ public class MainActivity extends AppCompatActivity {
             try {
                 String shortenUrl = "http://tinyurl.com/api-create.php";
                 shortenUrl = shortenUrl + "?url=" + strings[0];
-                HttpGet httpGet = new HttpGet(shortenUrl);
-                HttpClient httpclient = new DefaultHttpClient();
-                HttpResponse response = httpclient.execute(httpGet);
-                int status = response.getStatusLine().getStatusCode();
-                if (status == 200) {
-                    HttpEntity entity = response.getEntity();
-                    String data = EntityUtils.toString(entity).trim();
+                HttpURLConnection urlConnection = (HttpURLConnection) new URL(shortenUrl).openConnection();
+                int responseCode = urlConnection.getResponseCode();
+                if (responseCode == HttpURLConnection.HTTP_OK) {
+                    String data = readStream(urlConnection.getInputStream()).trim();
                     Log.d("response", data);
                     return data;
                 }
@@ -189,6 +216,8 @@ public class MainActivity extends AppCompatActivity {
             }
             return null;
         }
+
+
     }
 
     /**
@@ -202,20 +231,14 @@ public class MainActivity extends AppCompatActivity {
         protected String doInBackground(Void... strings) {
             try {
                 Log.d(LOG_TAG, "Fetching from merchant endpoint");
-                HttpGet httpGet;
                 Uri uri = createUri(new URL("http://ec2-35-162-20-220.us-west-2.compute.amazonaws.com"),
                         getParams(),
                         "/prod/signAndEncrypt.jsp");
                 Log.d("requestUri", uri.toString());
-                httpGet = new HttpGet(uri.toString());
-
-                HttpClient httpclient = new DefaultHttpClient();
-                HttpResponse response = httpclient.execute(httpGet);
-
-                int status = response.getStatusLine().getStatusCode();
-                if (status == 200) {
-                    HttpEntity entity = response.getEntity();
-                    String data = EntityUtils.toString(entity).trim();
+                HttpURLConnection urlConnection = (HttpURLConnection) new URL(uri.toString()).openConnection();
+                int responseCode = urlConnection.getResponseCode();
+                if (responseCode == HttpURLConnection.HTTP_OK) {
+                    String data = readStream(urlConnection.getInputStream()).trim();
                     Log.d("response", data);
                     Map<String, String> decodedParams = getDecodedQueryParameters(data);
                     for (String key : decodedParams.keySet()) {
@@ -230,11 +253,9 @@ public class MainActivity extends AppCompatActivity {
                             "/initiatePayment");
                     Log.wtf(LOG_TAG, "url=" + url);
                     return url;
-                } else
-
-                {
+                } else {
                     Log.d(LOG_TAG, String.format("Unable to sign payload. Received following status code: %d",
-                            status));
+                            responseCode));
                 }
             } catch (
                     Exception e)
